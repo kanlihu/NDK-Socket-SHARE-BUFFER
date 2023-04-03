@@ -1,0 +1,1 @@
+# NDK-Socket-SHARE-BUFFER
