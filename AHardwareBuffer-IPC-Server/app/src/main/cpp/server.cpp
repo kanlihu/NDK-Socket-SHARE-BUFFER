@@ -164,8 +164,8 @@ int Init ( ESContext *esContext )
     //userData->lightMapTexId = LoadTexture ( esContext->platformData, "lightmap.tga" );
     setupAHardwareBuffer01(esContext);
     userData->baseMapTexId = LoadOutTexture(esContext);
-    setupAHardwareBuffer02(esContext);
     userData->baseMapTexId = setupAHardwareBuffer02(esContext);
+
     if ( userData->baseMapTexId == 0  )
     {
         return FALSE;

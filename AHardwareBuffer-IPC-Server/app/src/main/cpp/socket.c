@@ -31,7 +31,7 @@ int connect_socket(int sock, const char *path)
     return connect(sock, (struct sockaddr *)&addr, sizeof(addr));
 }
 
-void write_fd(int sock, int fd, void *data, size_t data_len)
+int write_fd(int sock, int fd, void *data, size_t data_len)
 {
     struct msghdr msg = {0};
     char buf[CMSG_SPACE(sizeof(fd))];
@@ -53,13 +53,11 @@ void write_fd(int sock, int fd, void *data, size_t data_len)
 
     msg.msg_controllen = CMSG_SPACE(sizeof(fd));
 
-    if (sendmsg(sock, &msg, 0) < 0)
-    {
-        exit(-1);
-    }
+    int ret = sendmsg(sock, &msg, 0);
+    return ret;
 }
 
-void read_fd(int sock, int *fd, void *data, size_t data_len)
+int read_fd(int sock, int *fd, void *data, size_t data_len)
 {
     struct msghdr msg = {0};
 
@@ -71,12 +69,14 @@ void read_fd(int sock, int *fd, void *data, size_t data_len)
     msg.msg_control = c_buffer;
     msg.msg_controllen = sizeof(c_buffer);
 
-    if (recvmsg(sock, &msg, 0) < 0)
+    int ret = recvmsg(sock, &msg, 0);
+    if (ret < 0)
     {
-        exit(-1);
+        return ret;
     }
 
     struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msg);
 
     memmove(fd, CMSG_DATA(cmsg), sizeof(fd));
+    return ret;
 }

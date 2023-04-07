@@ -11,8 +11,8 @@ extern "C"{
 #endif
 int create_socket(const char *path);
 int connect_socket(int sock, const char *path);
-void write_fd(int sock, int fd, void *data, size_t data_len);
-void read_fd(int sock, int *fd, void *data, size_t data_len);
+int write_fd(int sock, int fd, void *data, size_t data_len);
+int read_fd(int sock, int *fd, void *data, size_t data_len);
 #ifdef  __cplusplus
 }
 #endif

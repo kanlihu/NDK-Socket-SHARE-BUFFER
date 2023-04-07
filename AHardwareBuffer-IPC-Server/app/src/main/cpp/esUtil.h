@@ -70,6 +70,11 @@ typedef struct
 
 typedef struct ESContext ESContext;
 
+
+struct buffer_mrg {
+    int buffer_size;
+
+};
 struct texture_storage_metadata_t
 {
     int width;

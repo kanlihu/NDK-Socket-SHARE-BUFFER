@@ -115,6 +115,9 @@ void *setupServer(ESContext *esContext) {
         }
         LOGI("buf[0] %d", buf[0]);
         switch (buf[0]) {
+            case 0x00: {
+                break;
+            }
             case 0x01: {
                 // Blocks until sent data
                 if (esContext && esContext->h_buffer) {
@@ -264,7 +267,6 @@ void sendSharedMem(ESContext *esContext) {
 }
 
 
-
 GLuint LoadOutTexture(ESContext *esContext) {
 
     GLuint texId;
@@ -285,26 +287,25 @@ GLuint setupAHardwareBuffer02(ESContext *esContext) {
     int width,
             height;
 
-    char *buffer = esLoadTGA ( esContext->platformData, "lightmap.tga" , &width, &height );
+    char *buffer = esLoadTGA(esContext->platformData, "lightmap.tga", &width, &height);
 
     GLuint texId;
 
-    if ( buffer == NULL )
-    {
-        esLogMessage ( "Error loading (%s) image.\n", "" );
+    if (buffer == NULL) {
+        esLogMessage("Error loading (%s) image.\n", "");
         return 0;
     } else {
-        esLogMessage ( "OK loading (%s) image.\n", "" );
+        esLogMessage("OK loading (%s) image.\n", "");
     }
 
-    glGenTextures ( 1, &texId );
-    glBindTexture ( GL_TEXTURE_2D, texId );
+    glGenTextures(1, &texId);
+    glBindTexture(GL_TEXTURE_2D, texId);
 
-    glTexImage2D ( GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri ( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     LOGI("kanli texId %d", texId);
     glFlush();
@@ -365,97 +366,41 @@ GLuint setupAHardwareBuffer02(ESContext *esContext) {
     return texId;
 }
 
+const char *offscreen_vertexshader =  "#version 330 core                                                 \n"
+                                      "// Input vertex data, different for all executions of this shader.\n"
+                                      "layout(location = 0) in vec3 vertexPosition_modelspace;           \n"
+                                      "// Output data ; will be interpolated for each fragment.          \n"
+                                      "void main(){                                                      \n"
+                                      "    gl_Position =  vec4(vertexPosition_modelspace,1);             \n"
+                                      "}                                                                 \n";
+const char *offscreen_fragmentshader = "#version 330 core\n"
+                                       "in vec2 UV;\n"
+                                       "out vec3 color;\n"
+                                       "uniform sampler2D renderedTexture;\n"
+                                       "uniform float time;\n"
+                                       "void main(){\n"
+                                       "    color = texture( renderedTexture, UV + 0.005*vec2( sin(time+1024.0*UV.x),cos(time+768.0*UV.y)) ).xyz ;\n"
+                                       "}";
 
-void gl_setup_scene()
-{
-    // Shader source that draws a textures quad
-    const char *vertex_shader_source = "#version 330 core\n"
-                                       "layout (location = 0) in vec3 aPos;\n"
-                                       "layout (location = 1) in vec2 aTexCoords;\n"
 
-                                       "out vec2 TexCoords;\n"
+const char vShadowMapShaderStr[] =
+        "#version 300 es                                  \n"
+        "uniform mat4 u_mvpLightMatrix;                   \n"
+        "layout(location = 0) in vec4 a_position;         \n"
+        "out vec4 v_color;                                \n"
+        "void main()                                      \n"
+        "{                                                \n"
+        "   gl_Position = u_mvpLightMatrix * a_position;  \n"
+        "}                                                \n";
 
-                                       "void main()\n"
-                                       "{\n"
-                                       "   TexCoords = aTexCoords;\n"
-                                       "   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-                                       "}\0";
-    const char *fragment_shader_source = "#version 330 core\n"
-                                         "out vec4 FragColor;\n"
+const char fShadowMapShaderStr[] =
+        "#version 300 es                                  \n"
+        "precision lowp float;                            \n"
+        "void main()                                      \n"
+        "{                                                \n"
+        "}                                                \n";
 
-                                         "in vec2 TexCoords;\n"
+int offsceenRender(ESContext *esContext) {
 
-                                         "uniform sampler2D Texture1;\n"
-
-                                         "void main()\n"
-                                         "{\n"
-                                         "   FragColor = texture(Texture1, TexCoords);\n"
-                                         "}\0";
-
-    // vertex shader
-    int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertex_shader, 1, &vertex_shader_source, NULL);
-    glCompileShader(vertex_shader);
-    // fragment shader
-    int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragment_shader, 1, &fragment_shader_source, NULL);
-    glCompileShader(fragment_shader);
-    // link shaders
-    int shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
-    // delete shaders
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    // quad
-    float vertices[] = {
-            0.5f, 0.5f, 0.0f, 0.0f, 0.0f,   // top right
-            0.5f, -0.5f, 0.0f, 1.0f, 0.0f,  // bottom right
-            -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, // bottom left
-            -0.5f, 0.5f, 0.0f, 0.0f, 1.0f   // top left
-    };
-    unsigned int indices[] = {
-            0, 1, 3, // first Triangle
-            1, 2, 3  // second Triangle
-    };
-
-    unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    glBindVertexArray(0);
-
-    // Prebind needed stuff for drawing
-    glUseProgram(shader_program);
-    glBindVertexArray(VAO);
-}
-
-void gl_draw_scene(GLuint texture)
-{
-    // clear
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    // draw quad
-    // VAO and shader program are already bound from the call to gl_setup_scene
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    return 0;
 }
