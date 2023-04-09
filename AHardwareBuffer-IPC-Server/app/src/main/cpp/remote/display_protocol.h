@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
-#include "android_util.h"
+#include "../android_util.h"
 
 /* vHAL mode : 0 - client mode (default),  1 - server mode */
 #define GRALLOC_PERFORM_VHAL_MODE 0x70000001

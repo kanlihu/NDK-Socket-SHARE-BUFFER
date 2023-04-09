@@ -39,6 +39,6 @@ void setupClient();
 void getSharedMem01(ESContext *esContext);
 
 void setupAHardwareBuffer01(ESContext * context);
-void getSharedMem02(ESContext *esContext);
-void setupAHardwareBuffer02(ESContext *esContext);
+void getSharedMem02(ESContext *esContext, int index);
+void setupAHardwareBuffer02(ESContext *esContext, int index);
 #endif //AHARDWAREBUFFER_IPC_CLIENT_OUTBUFFER_H

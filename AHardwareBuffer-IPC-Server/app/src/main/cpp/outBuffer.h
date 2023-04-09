@@ -41,7 +41,5 @@ void* setupServer(ESContext *esContext);
 void sendSharedMem(ESContext *esContext);
 GLuint LoadOutTexture(ESContext *esContext);
 void setupAHardwareBuffer01(ESContext * context);
-GLuint setupAHardwareBuffer02(ESContext *esContext);
-void gl_setup_scene();
-void gl_draw_scene(GLuint texture);
+GLuint setupAHardwareBuffer02(ESContext *esContext, int index);
 #endif //AHARDWAREBUFFER_IPC_SERVER_OUTBUFFER_H

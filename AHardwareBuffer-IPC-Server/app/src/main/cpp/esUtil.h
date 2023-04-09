@@ -86,6 +86,12 @@ struct texture_storage_metadata_t
     EGLint stride;
 };
 
+struct EGL_DMA_Image {
+    EGLImageKHR h_egl_buffer;
+    int texture_dma_fd;
+    struct texture_storage_metadata_t texture_metadata;
+};
+
 struct ESContext
 {
     /// Put platform specific data here
@@ -120,10 +126,8 @@ struct ESContext
 #ifdef ANDROID
     struct AHardwareBuffer* h_buffer;
     EGLImageKHR h_egl_buffer;
-    struct AHardwareBuffer* h_buffer02;
-    EGLImageKHR h_egl_buffer02;
-    struct texture_storage_metadata_t *texture_metadata;
-    int texture_dmabuf_fd;
+    size_t eglDmaImage_size;
+    struct EGL_DMA_Image eglDmaImage[3];
 #endif
     /// Callbacks
     void ( ESCALLBACK *drawFunc ) ( ESContext * );

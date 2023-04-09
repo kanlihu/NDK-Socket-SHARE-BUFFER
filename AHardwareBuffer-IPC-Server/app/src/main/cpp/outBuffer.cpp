@@ -52,6 +52,13 @@ void setupClient(void) {
     LOGI("Client Setup Complete");
 }
 
+struct command {
+    int32_t type;
+    int32_t para1;
+    int32_t para2;
+    int32_t para3;
+};
+
 // Server to get socket data with information of SharedMem's file descriptor
 void *setupServer(ESContext *esContext) {
     int ret;
@@ -107,14 +114,14 @@ void *setupServer(ESContext *esContext) {
     // Would be better to refactor this for robustness
 #if 1
     for (;;) {
-        char buf[100];
-        ret = read(data_socket, buf, 1);
+        struct command command_buf;
+        ret = read(data_socket, &command_buf, sizeof(command_buf));
         if (ret < 0) {
             LOGE("Failed to read errno %d", -errno);
             goto out;
         }
-        LOGI("buf[0] %d", buf[0]);
-        switch (buf[0]) {
+        LOGI("buf[0] %d", command_buf.type);
+        switch (command_buf.type) {
             case 0x00: {
                 break;
             }
@@ -130,8 +137,14 @@ void *setupServer(ESContext *esContext) {
                 break;
             }
             case 0x02: {
-                write_fd(data_socket, esContext->texture_dmabuf_fd, esContext->texture_metadata,
-                         sizeof(struct texture_storage_metadata_t));
+                int index = command_buf.para1;
+                if (index < esContext->eglDmaImage_size) {
+                    write_fd(data_socket, esContext->eglDmaImage[index].texture_dma_fd,
+                             &esContext->eglDmaImage[index].texture_metadata,
+                             sizeof(struct texture_storage_metadata_t));
+                } else {
+                    LOGE("index %d out of eglDmaImage_size %d", index, esContext->eglDmaImage_size);
+                }
                 break;
             }
         }
@@ -282,10 +295,9 @@ GLuint LoadOutTexture(ESContext *esContext) {
 }
 
 
-GLuint setupAHardwareBuffer02(ESContext *esContext) {
+GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
 
-    int width,
-            height;
+    int width, height;
 
     char *buffer = esLoadTGA(esContext->platformData, "lightmap.tga", &width, &height);
 
@@ -310,21 +322,22 @@ GLuint setupAHardwareBuffer02(ESContext *esContext) {
     LOGI("kanli texId %d", texId);
     glFlush();
 
-    EGLImageKHR image = eglCreateImageKHR(esContext->eglDisplay,
-                                          esContext->eglContext,
-                                          EGL_GL_TEXTURE_2D,
-                                          (EGLClientBuffer) (uint64_t) texId,
-                                          NULL);
-    if (image == EGL_NO_IMAGE_KHR) {
+    EGLImageKHR h_egl_buffer = eglCreateImageKHR(esContext->eglDisplay,
+                                                 esContext->eglContext,
+                                                 EGL_GL_TEXTURE_2D,
+                                                 (EGLClientBuffer) (uint64_t) texId,
+                                                 NULL);
+    if (h_egl_buffer == EGL_NO_IMAGE_KHR) {
         LOGE("create failed %x", eglGetError());
     }
-    esContext->h_egl_buffer02 = image;
-    LOGI("kanli esContext->h_egl_buffer02 %p", esContext->h_egl_buffer02);
+
+    esContext->eglDmaImage[index].h_egl_buffer = h_egl_buffer;
+    LOGI("kanli esContext->h_egl_buffer02 %p", esContext->eglDmaImage[index].h_egl_buffer);
 // EGL (extension: EGL_MESA_image_dma_buf_export): Get file descriptor (texture_dmabuf_fd) for the EGL image and get its
     // storage data (texture_storage_metadata - fourcc, stride, offset)
-    int fd;
+    int *ptr_fd = &esContext->eglDmaImage[index].texture_dma_fd;
     struct texture_storage_metadata_t *metadata = (struct texture_storage_metadata_t *)
-            malloc(sizeof(struct texture_storage_metadata_t));
+            &esContext->eglDmaImage[index].texture_metadata;
 
     PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC eglExportDMABUFImageQueryMESA =
             (PFNEGLEXPORTDMABUFIMAGEQUERYMESAPROC) eglGetProcAddress(
@@ -333,7 +346,7 @@ GLuint setupAHardwareBuffer02(ESContext *esContext) {
         LOGE("can not use eglExportDMABUFImageQueryMESA");
     }
     EGLBoolean queried = eglExportDMABUFImageQueryMESA(esContext->eglDisplay,
-                                                       esContext->h_egl_buffer02,
+                                                       h_egl_buffer,
                                                        &metadata->fourcc,
                                                        &metadata->num_planes,
                                                        &metadata->modifiers);
@@ -346,33 +359,31 @@ GLuint setupAHardwareBuffer02(ESContext *esContext) {
         LOGE("can not use eglExportDMABUFImageMESA");
     }
     EGLBoolean exported = eglExportDMABUFImageMESA(esContext->eglDisplay,
-                                                   esContext->h_egl_buffer02,
-                                                   &fd,
+                                                   h_egl_buffer,
+                                                   ptr_fd,
                                                    &metadata->stride,
                                                    &metadata->offset);
     if (exported > 0) {
         metadata->width = width;
         metadata->height = height;
-        esContext->texture_dmabuf_fd = fd;
-        esContext->texture_metadata = metadata;
 
         LOGI("exorpted > 0 kanli fd %d forcc %x num_planes %d modifiers %" PRIx64 " stride %d offset %d",
-             fd, metadata->fourcc, metadata->num_planes, metadata->modifiers,
+             *ptr_fd, metadata->fourcc, metadata->num_planes, metadata->modifiers,
              metadata->stride, metadata->offset);
     } else {
-        esContext->texture_metadata = NULL;
+        LOGE("eglExportDMABUFImageMESA export failed");
     }
 
     return texId;
 }
 
-const char *offscreen_vertexshader =  "#version 330 core                                                 \n"
-                                      "// Input vertex data, different for all executions of this shader.\n"
-                                      "layout(location = 0) in vec3 vertexPosition_modelspace;           \n"
-                                      "// Output data ; will be interpolated for each fragment.          \n"
-                                      "void main(){                                                      \n"
-                                      "    gl_Position =  vec4(vertexPosition_modelspace,1);             \n"
-                                      "}                                                                 \n";
+const char *offscreen_vertexshader = "#version 330 core                                                 \n"
+                                     "// Input vertex data, different for all executions of this shader.\n"
+                                     "layout(location = 0) in vec3 vertexPosition_modelspace;           \n"
+                                     "// Output data ; will be interpolated for each fragment.          \n"
+                                     "void main(){                                                      \n"
+                                     "    gl_Position =  vec4(vertexPosition_modelspace,1);             \n"
+                                     "}                                                                 \n";
 const char *offscreen_fragmentshader = "#version 330 core\n"
                                        "in vec2 UV;\n"
                                        "out vec3 color;\n"

@@ -1,7 +1,7 @@
 //#define LOG_NDEBUG 0
 
 #include "RemoteDisplay.h"
-#include "android_log.h"
+#include "../android_log.h"
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>

@@ -226,8 +226,10 @@ int esMain ( ESContext *esContext )
     getSharedMem01(esContext);
     setupAHardwareBuffer01(esContext);
 #else
-    getSharedMem02(esContext);
-    setupAHardwareBuffer02(esContext);
+    for (int i = 0; i < 3; i++ ) {
+        getSharedMem02(esContext, i);
+        setupAHardwareBuffer02(esContext,i);
+    }
 #endif
     if ( !Init ( esContext ) )
     {

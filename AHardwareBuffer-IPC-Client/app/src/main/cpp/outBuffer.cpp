@@ -83,11 +83,18 @@ void createEGLImageAndroidHardwareBufferSource(
     *outSourceImage = image;
 }
 
+struct command {
+    int32_t type;
+    int32_t para1;
+    int32_t para2;
+    int32_t para3;
+};
+
 void getSharedMem01(ESContext *esContext) {
     int ret;
-    char buf[100];
-    buf[0] = 0x01;
-    ret = write(data_socket, buf, 1);
+    struct command command_buf;
+    command_buf.type = 0x01;
+    ret = write(data_socket, &command_buf, sizeof(command_buf));
     if (ret < 0) {
         LOGE("write error");
     }
@@ -111,30 +118,29 @@ void setupAHardwareBuffer01(ESContext *esContext) {
 }
 
 
-void getSharedMem02(ESContext *esContext) {
+void getSharedMem02(ESContext *esContext, int index) {
     int ret;
-    char buf[100];
-    buf[0] = 0x02;
-    ret = write(data_socket, buf, 1);
+    struct command command_buf;
+    command_buf.type = 0x02;
+    command_buf.para1 = index;
+    ret = write(data_socket, &command_buf, sizeof(command_buf));
     LOGI("getShareMem02 ret %d", ret);
     if (ret < 0) {
         LOGE("write error");
     }
-    struct texture_storage_metadata_t *metadata = (struct texture_storage_metadata_t *) malloc(
+    read_fd(data_socket, &esContext->eglDmaImage[index].texture_dma_fd,
+            &esContext->eglDmaImage[index].texture_metadata,
             sizeof(struct texture_storage_metadata_t));
-    read_fd(data_socket, &esContext->texture_dmabuf_fd, metadata,
-            sizeof(struct texture_storage_metadata_t));
-    esContext->texture_metadata = metadata;
     LOGI("getShareMem02 OK");
 }
 
-void setupAHardwareBuffer02(ESContext *esContext) {
-    struct texture_storage_metadata_t *texture_metadata = esContext->texture_metadata;
+void setupAHardwareBuffer02(ESContext *esContext, int index) {
+    struct texture_storage_metadata_t *texture_metadata = &esContext->eglDmaImage[index].texture_metadata;
     EGLint attrs[] = {
             EGL_WIDTH, texture_metadata->width,
             EGL_HEIGHT, texture_metadata->height,
             EGL_LINUX_DRM_FOURCC_EXT, texture_metadata->fourcc,
-            EGL_DMA_BUF_PLANE0_FD_EXT, esContext->texture_dmabuf_fd,
+            EGL_DMA_BUF_PLANE0_FD_EXT, esContext->eglDmaImage[index].texture_dma_fd,
             EGL_DMA_BUF_PLANE0_OFFSET_EXT, texture_metadata->offset,
             EGL_DMA_BUF_PLANE0_MODIFIER_HI_EXT,
             (EGLint) ((texture_metadata->modifiers >> 32) & 0x00000000FFFFFFFF),
@@ -151,11 +157,12 @@ void setupAHardwareBuffer02(ESContext *esContext) {
         LOGI("EGL_NO_IMAGE_KHR error %x", eglGetError());
     }
     esContext->h_egl_buffer = image;
-    esContext->h_egl_buffer02 = image;
+    esContext->eglDmaImage[index].h_egl_buffer = image;
 
-    LOGI("width:%d height:%d modifiers %" PRIx64 " high %x low %x egl_buffer %p", texture_metadata->width,
+    LOGI("width:%d height:%d modifiers %" PRIx64 " high %x low %x egl_buffer %p",
+         texture_metadata->width,
          texture_metadata->height, texture_metadata->modifiers,
          (EGLint) ((texture_metadata->modifiers >> 32) & 0x00000000FFFFFFFF),
          (EGLint) (texture_metadata->modifiers & 0x00000000FFFFFFFF),
-         (void *) esContext->h_egl_buffer02);
+         (void *) esContext->eglDmaImage[index].h_egl_buffer);
 }

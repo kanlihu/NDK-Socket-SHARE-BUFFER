@@ -9,7 +9,7 @@
 
 #include "IRemoteDevice.h"
 #include "RemoteDisplay.h"
-#include "android_log.h"
+#include "../android_log.h"
 
 class RemoteDisplayMgr : public DisplayStatusListener {
 public:
