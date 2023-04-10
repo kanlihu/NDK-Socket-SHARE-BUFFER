@@ -39,10 +39,11 @@
 //    lightmap to demonstrate multitexturing.
 //
 #include <stdlib.h>
+#include <pthread.h>
 #include "esUtil.h"
 #include "outBuffer.h"
 #include "socket.h"
-#include <pthread.h>
+#include "offscreenRender.h"
 
 typedef struct {
     // Handle to a program object
@@ -159,15 +160,16 @@ int Init(ESContext *esContext) {
     //userData->baseMapTexId = LoadTexture ( esContext->platformData, "basemap.tga" );
     //userData->lightMapTexId = LoadTexture ( esContext->platformData, "lightmap.tga" );
     setupAHardwareBuffer01(esContext);
-    userData->baseMapTexId = LoadOutTexture(esContext);
+    userData->baseMapTexId = LoadOutTexture01(esContext);
 
     int size = 3;
     esContext->eglDmaImage_size = size;
     memset(esContext->eglDmaImage, 0, sizeof(struct EGL_DMA_Image) * size);
     for (int i = 0; i < size; i++) {
+        genOutTexture02(esContext, i);
         setupAHardwareBuffer02(esContext, i);
     }
-
+    offscreenRender(esContext);
     if (userData->baseMapTexId == 0) {
         return FALSE;
     } else {

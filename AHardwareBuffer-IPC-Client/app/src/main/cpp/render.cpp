@@ -43,8 +43,7 @@
 #include "esUtil.h"
 #include "outBuffer.h"
 
-typedef struct
-{
+typedef struct {
     // Handle to a program object
     GLuint programObject;
 
@@ -62,27 +61,31 @@ typedef struct
 } UserData;
 
 
-GLuint LoadOutTexture(ESContext *esContext) {
+GLuint genOutTexture(ESContext *esContext, int index) {
 
     GLuint texId;
-    glGenTextures ( 1, &texId );
+    glGenTextures(1, &texId);
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, texId);
-    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES, esContext->h_egl_buffer);
-    glTexParameteri ( GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-    glTexParameteri ( GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-    glTexParameteri ( GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-    LOGI("kanli %s texId %d",__FUNCTION__ , texId);
+    glEGLImageTargetTexture2DOES(GL_TEXTURE_EXTERNAL_OES,
+                                 esContext->eglDmaImage[index].h_egl_buffer);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    LOGI("kanli %s texId %d", __FUNCTION__, texId);
+    esContext->eglDmaImage[index].texId = texId;
     return texId;
 }
 
+GLuint loadOutTexture(ESContext *esContext, int index) {
+    return esContext->eglDmaImage[index].texId;
+}
 
 
 ///
 // Initialize the shader and program object
 //
-int Init ( ESContext *esContext )
-{
+int Init(ESContext *esContext) {
     UserData *userData = (UserData *) esContext->userData;
 #if 0
     char vShaderStr[] =
@@ -137,7 +140,7 @@ int Init ( ESContext *esContext )
             "}                                                   \n";
 #endif
     // Load the shaders and get a linked program object
-    userData->programObject = esLoadProgram ( vShaderStr, fShaderStr );
+    userData->programObject = esLoadProgram(vShaderStr, fShaderStr);
 
     // Get the sampler location
     //userData->baseMapLoc = glGetUniformLocation ( userData->programObject, "s_baseMap" );
@@ -147,96 +150,98 @@ int Init ( ESContext *esContext )
     //userData->baseMapTexId = LoadTexture ( esContext->platformData, "basemap.tga" );
     //userData->lightMapTexId = LoadTexture ( esContext->platformData, "lightmap.tga" );
 
-    userData->baseMapTexId = LoadOutTexture(esContext);
-
-    if ( userData->baseMapTexId == 0  )
-    {
-        LOGI("kanli baseMapTexid 0");
-        return FALSE;
+    int size = esContext->eglDmaImage_size;
+    for (int i = 0; i < size; i++) {
+        int texId = genOutTexture(esContext, i);
+        if (texId == 0) {
+            LOGI("kanli texId 0");
+            return FALSE;
+        }
     }
-    glClearColor ( 1.0f, 1.0f, 1.0f, 0.0f );
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
     return TRUE;
 }
 
 void Draw02(ESContext *esContext) {
 
     UserData *userData = (UserData *) esContext->userData;
-    GLfloat vVertices[] = { -1.0f,  1.0f, 0.0f,  // Position 0
-                            0.0f,  0.0f,        // TexCoord 0
-                            -1.0f, -1.0f, 0.0f,  // Position 1
-                            0.0f,  1.0f,        // TexCoord 1
-                            1.0f, -1.0f, 0.0f,  // Position 2
-                            1.0f,  1.0f,        // TexCoord 2
-                            1.0f,  1.0f, 0.0f,  // Position 3
-                            1.0f,  0.0f         // TexCoord 3
+    GLfloat vVertices[] = {-1.0f, 1.0f, 0.0f,  // Position 0
+                           0.0f, 0.0f,        // TexCoord 0
+                           -1.0f, -1.0f, 0.0f,  // Position 1
+                           0.0f, 1.0f,        // TexCoord 1
+                           1.0f, -1.0f, 0.0f,  // Position 2
+                           1.0f, 1.0f,        // TexCoord 2
+                           1.0f, 1.0f, 0.0f,  // Position 3
+                           1.0f, 0.0f         // TexCoord 3
     };
-    GLushort indices[] = { 0, 1, 2, 0, 2, 3 };
+    GLushort indices[] = {0, 1, 2, 0, 2, 3};
 
     // Set the viewport
-    glViewport ( 0, 0, esContext->width, esContext->height );
+    glViewport(0, 0, esContext->width, esContext->height);
 
     // Clear the color buffer
-    glClear ( GL_COLOR_BUFFER_BIT );
+    glClear(GL_COLOR_BUFFER_BIT);
 
     // Use the program object
-    glUseProgram ( userData->programObject );
+    glUseProgram(userData->programObject);
 
     // Load the vertex position
-    glVertexAttribPointer ( 0, 3, GL_FLOAT,
-                            GL_FALSE, 5 * sizeof ( GLfloat ), vVertices );
+    glVertexAttribPointer(0, 3, GL_FLOAT,
+                          GL_FALSE, 5 * sizeof(GLfloat), vVertices);
     // Load the texture coordinate
-    glVertexAttribPointer ( 1, 2, GL_FLOAT,
-                            GL_FALSE, 5 * sizeof ( GLfloat ), &vVertices[3] );
+    glVertexAttribPointer(1, 2, GL_FLOAT,
+                          GL_FALSE, 5 * sizeof(GLfloat), &vVertices[3]);
 
-    glEnableVertexAttribArray ( 0 );
-    glEnableVertexAttribArray ( 1 );
+    glEnableVertexAttribArray(0);
+    glEnableVertexAttribArray(1);
 
     // Bind the base map
-    glActiveTexture ( GL_TEXTURE0 );
-
+    glActiveTexture(GL_TEXTURE0);
+    static int index = 0;
+    userData->baseMapTexId = loadOutTexture(esContext, index);
+    index = (index + 1) % 3;
     glBindTexture(GL_TEXTURE_EXTERNAL_OES, userData->baseMapTexId);
 
     // Set the base map sampler to texture unit to 0
-    glUniform1i ( userData->baseMapLoc, 0 );
+    glUniform1i(userData->baseMapLoc, 0);
 
-    glDrawElements ( GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices );
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_SHORT, indices);
 }
 
 
-void ShutDown02 ( ESContext *esContext )
-{
+void ShutDown02(ESContext *esContext) {
     UserData *userData = (UserData *) esContext->userData;
 
     // Delete texture object
-    glDeleteTextures ( 1, &userData->baseMapTexId );
+    glDeleteTextures(1, &userData->baseMapTexId);
 
     // Delete program object
-    glDeleteProgram ( userData->programObject );
+    glDeleteProgram(userData->programObject);
 }
 
 extern "C"
-int esMain ( ESContext *esContext )
-{
-    esContext->userData = malloc ( sizeof ( UserData ) );
+int esMain(ESContext *esContext) {
+    esContext->userData = malloc(sizeof(UserData));
 
-    esCreateWindow ( esContext, "MultiTexture", esContext->width, esContext->height, ES_WINDOW_RGB );
+    esCreateWindow(esContext, "MultiTexture", esContext->width, esContext->height, ES_WINDOW_RGB);
 
     setupClient();
 #if 0
     getSharedMem01(esContext);
     setupAHardwareBuffer01(esContext);
 #else
-    for (int i = 0; i < 3; i++ ) {
+    esContext->eglDmaImage_size = 3;
+    int size = esContext->eglDmaImage_size;
+    for (int i = 0; i < size; i++) {
         getSharedMem02(esContext, i);
-        setupAHardwareBuffer02(esContext,i);
+        setupAHardwareBuffer02(esContext, i);
     }
 #endif
-    if ( !Init ( esContext ) )
-    {
+    if (!Init(esContext)) {
         return GL_FALSE;
     }
-    esRegisterDrawFunc ( esContext, Draw02 );
-    esRegisterShutdownFunc ( esContext, ShutDown02 );
+    esRegisterDrawFunc(esContext, Draw02);
+    esRegisterShutdownFunc(esContext, ShutDown02);
 
     return GL_TRUE;
 }

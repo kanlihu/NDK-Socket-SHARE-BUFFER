@@ -82,6 +82,9 @@ struct texture_storage_metadata_t
 };
 
 struct EGL_DMA_Image {
+    int texId;
+    int width;
+    int height;
     EGLImageKHR h_egl_buffer;
     int texture_dma_fd;
     struct texture_storage_metadata_t texture_metadata;

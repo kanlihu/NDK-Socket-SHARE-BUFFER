@@ -12,6 +12,8 @@ add_library(ServerIPC
         src/main/cpp/esUtil_Android.c
         src/main/cpp/esTransform.c
         src/main/cpp/socket.c
+
+        src/main/cpp/offscreenRender.c
         src/main/cpp/outBuffer.cpp
         src/main/cpp/android_util.cpp
         src/main/cpp/server.cpp

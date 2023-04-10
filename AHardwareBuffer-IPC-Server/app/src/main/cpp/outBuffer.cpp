@@ -15,6 +15,7 @@
 #include "esUtil.h"
 #include "android_util.h"
 #include "socket.h"
+#include "android_log.h"
 
 // Can be anything if using abstract namespace
 #define SOCKET_NAME "sharedServerSocket"
@@ -280,7 +281,7 @@ void sendSharedMem(ESContext *esContext) {
 }
 
 
-GLuint LoadOutTexture(ESContext *esContext) {
+GLuint LoadOutTexture01(ESContext *esContext) {
 
     GLuint texId;
     glGenTextures(1, &texId);
@@ -294,12 +295,11 @@ GLuint LoadOutTexture(ESContext *esContext) {
     return texId;
 }
 
-
-GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
+GLuint genOutTexture02(ESContext *esContext, int index) {
 
     int width, height;
 
-    char *buffer = esLoadTGA(esContext->platformData, "lightmap.tga", &width, &height);
+    char *buffer = esLoadTGA(esContext->platformData, index==0?"lightmap.tga":"basemap.tga", &width, &height);
 
     GLuint texId;
 
@@ -320,12 +320,20 @@ GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
     LOGI("kanli texId %d", texId);
+    esContext->eglDmaImage[index].texId = texId;
+    esContext->eglDmaImage[index].width = width;
+    esContext->eglDmaImage[index].height = height;
     glFlush();
+    return texId;
+}
+
+GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
+
 
     EGLImageKHR h_egl_buffer = eglCreateImageKHR(esContext->eglDisplay,
                                                  esContext->eglContext,
                                                  EGL_GL_TEXTURE_2D,
-                                                 (EGLClientBuffer) (uint64_t) texId,
+                                                 (EGLClientBuffer) (uint64_t) esContext->eglDmaImage[index].texId,
                                                  NULL);
     if (h_egl_buffer == EGL_NO_IMAGE_KHR) {
         LOGE("create failed %x", eglGetError());
@@ -364,8 +372,8 @@ GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
                                                    &metadata->stride,
                                                    &metadata->offset);
     if (exported > 0) {
-        metadata->width = width;
-        metadata->height = height;
+        metadata->width = esContext->eglDmaImage[index].width;
+        metadata->height = esContext->eglDmaImage[index].height;
 
         LOGI("exorpted > 0 kanli fd %d forcc %x num_planes %d modifiers %" PRIx64 " stride %d offset %d",
              *ptr_fd, metadata->fourcc, metadata->num_planes, metadata->modifiers,
@@ -374,44 +382,5 @@ GLuint setupAHardwareBuffer02(ESContext *esContext, int index) {
         LOGE("eglExportDMABUFImageMESA export failed");
     }
 
-    return texId;
-}
-
-const char *offscreen_vertexshader = "#version 330 core                                                 \n"
-                                     "// Input vertex data, different for all executions of this shader.\n"
-                                     "layout(location = 0) in vec3 vertexPosition_modelspace;           \n"
-                                     "// Output data ; will be interpolated for each fragment.          \n"
-                                     "void main(){                                                      \n"
-                                     "    gl_Position =  vec4(vertexPosition_modelspace,1);             \n"
-                                     "}                                                                 \n";
-const char *offscreen_fragmentshader = "#version 330 core\n"
-                                       "in vec2 UV;\n"
-                                       "out vec3 color;\n"
-                                       "uniform sampler2D renderedTexture;\n"
-                                       "uniform float time;\n"
-                                       "void main(){\n"
-                                       "    color = texture( renderedTexture, UV + 0.005*vec2( sin(time+1024.0*UV.x),cos(time+768.0*UV.y)) ).xyz ;\n"
-                                       "}";
-
-
-const char vShadowMapShaderStr[] =
-        "#version 300 es                                  \n"
-        "uniform mat4 u_mvpLightMatrix;                   \n"
-        "layout(location = 0) in vec4 a_position;         \n"
-        "out vec4 v_color;                                \n"
-        "void main()                                      \n"
-        "{                                                \n"
-        "   gl_Position = u_mvpLightMatrix * a_position;  \n"
-        "}                                                \n";
-
-const char fShadowMapShaderStr[] =
-        "#version 300 es                                  \n"
-        "precision lowp float;                            \n"
-        "void main()                                      \n"
-        "{                                                \n"
-        "}                                                \n";
-
-int offsceenRender(ESContext *esContext) {
-
-    return 0;
+    return esContext->eglDmaImage[index].texId;
 }
