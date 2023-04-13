@@ -9,8 +9,9 @@ extern "C" {
 #endif
 #include "esUtil.h"
 
-void offscreenRender(ESContext *esContest);
-
+void onSurfaceCreated(ESContext *esContext, EGLConfig eglConfig);
+void onSurfaceChanged(ESContext *esContext, int width, int height);
+void onDrawFrame(ESContext *esContext);
 #ifdef __cplusplus
 }
 #endif

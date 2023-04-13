@@ -12,10 +12,10 @@ add_library(ServerIPC
         src/main/cpp/esUtil_Android.c
         src/main/cpp/esTransform.c
         src/main/cpp/socket.c
-
+        src/main/cpp/test_utils/angleutils.cpp
+        src/main/cpp/test_utils/android_util.cpp
         src/main/cpp/offscreenRender.c
         src/main/cpp/outBuffer.cpp
-        src/main/cpp/android_util.cpp
         src/main/cpp/server.cpp
         src/main/cpp/remote/RemoteDisplayMgr.cpp
         src/main/cpp/remote/RemoteDisplay.cpp

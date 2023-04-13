@@ -5,6 +5,7 @@
 #include <string.h>
 #include "offscreenRender.h"
 #include "esUtil.h"
+#include "android_log.h"
 
 const char vShadowMapShaderStr[] =
         "#version 300 es                                  \n"
@@ -287,13 +288,84 @@ float nearPlaneTop = 1.0f;
 float nearPlane = 2.0f;
 float farPlane = 100.0f;
 
+
+void getIdentity(ESMatrix *matrix) {
+    esMatrixLoadIdentity(matrix);
+}
+
 void onDrawFrame(ESContext *esContext) {
     rotateY += 1.0f;
     glUseProgram(programId);
+
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glViewport(0, 0, glSurfaceViewWidth, glSurfaceViewHeight);
+
+    glEnableVertexAttribArray(LOCATION_ATTRIBUTE_POSITION);
+    glVertexAttribPointer(LOCATION_ATTRIBUTE_POSITION, VERTEX_COMPONENT_COUNT, GL_FLOAT, false, 0,
+                          vertexDataBuffer);
+    glEnableVertexAttribArray(LOCATION_ATTRIBUTE_TEXTURE_COORDINATE);
+    glVertexAttribPointer(LOCATION_ATTRIBUTE_TEXTURE_COORDINATE, TEXTURE_COORDINATE_COMPONENT_COUNT,
+                          GL_FLOAT, false, 0, textureCoordinateDataBuffer);
+    glEnableVertexAttribArray(LOCATION_ATTRIBUTE_NORMAL);
+    glVertexAttribPointer(LOCATION_ATTRIBUTE_NORMAL, NORMAL_COMPONENT_COUNT, GL_FLOAT, false, 0,
+                          normalDataBuffer);
+
+    ESMatrix mvpMatrix;
+    getIdentity(&mvpMatrix);
+    ESMatrix translateMatrix;
+    getIdentity(&mvpMatrix);
+    ESMatrix rotateMatrix;
+    getIdentity(&rotateMatrix);
+    ESMatrix scaleMatrix;
+    getIdentity(&scaleMatrix);
+    ESMatrix modelMatrix;
+    getIdentity(&modelMatrix);
+    ESMatrix viewMatrix;
+    getIdentity(&viewMatrix);
+    ESMatrix projectMatrix;
+    getIdentity(&projectMatrix);
+    esTranslate(&translateMatrix, translateX, translateY, translateZ);
+    esRotate(&rotateMatrix, rotateZ, 1.0f, 0.0f, 0.0f);
+    esRotate(&rotateMatrix, rotateY, 0.0f, 1.0f, 0.0f);
+    esRotate(&rotateMatrix, rotateX, 0.0f, 0.0f, 1.0f);
+    esScale(&scaleMatrix, scaleX, scaleY, scaleZ);
+    esMatrixMultiply(&modelMatrix, &rotateMatrix, &scaleMatrix);
+    esMatrixMultiply(&modelMatrix, &modelMatrix, &translateMatrix);
+    esMatrixLookAt(&viewMatrix, cameraPositionX, cameraPositionY, cameraPositionZ, lookAtX, lookAtY,
+                   lookAtZ, cameraUpX, cameraUpY, cameraUpZ);
+
+    esFrustum(&projectMatrix, nearPlaneLeft, nearPlaneRight, nearPlaneBottom, nearPlaneTop,
+              nearPlane, farPlane);
+    esMatrixMultiply(&mvpMatrix, &viewMatrix, &modelMatrix);
+    esMatrixMultiply(&mvpMatrix, &projectMatrix, &mvpMatrix);
+
+    glUniformMatrix4fv(glGetUniformLocation(programId, "model"), 1, false, &modelMatrix.m[0][0]);
+
+    glUniformMatrix4fv(glGetUniformLocation(programId, "view"), 1, false, &viewMatrix.m[0][0]);
+
+    glUniformMatrix4fv(glGetUniformLocation(programId, "projection"), 1, false,
+                       &projectMatrix.m[0][0]);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, imageTexture);
+    glUniform1i(glGetUniformLocation(programId, "imageTex"), 0);
+    glUniform3f(glGetUniformLocation(programId, "viewPos"), 0.0f, 0.0f, 5.0f);
+    glUniform3f(glGetUniformLocation(programId, "lightColor"), 1.0f, 1.0f, 1.0f);
+    glUniform3f(glGetUniformLocation(programId, "objectColor"), 1.0f, 1.0f, 0.0f);
+
+    glDrawArrays(
+            GL_TRIANGLES, 0, sizeof (vertexData)/sizeof (float )/ VERTEX_COMPONENT_COUNT);
+    if(glGetError() != 0) {
+        LOGE("kanli glGetError");
+    }
 }
 
 void onSurfaceChanged(ESContext *esContext, int width, int height) {
-
     glSurfaceViewWidth = width;
     glSurfaceViewHeight = height;
     nearPlaneBottom = -(float) height / (float) width;
@@ -348,23 +420,18 @@ void onSurfaceCreated(ESContext *esContext, EGLConfig eglConfig) {
                           GL_FLOAT, false,
                           0, textureCoordinateDataBuffer);
 
-    glGenTextures(1, &imageTexture);
 
     glActiveTexture(GL_TEXTURE0);
-    int tex = LoadTexture(esContext->platformData, "lighting/brick.png");
-#if 0
-    val bitmap = Util.decodeBitmapFromAssets("lighting/brick.png")
-    glBindTexture(GL_TEXTURE_2D, imageTexture)
-    val b = ByteBuffer.allocate(bitmap.width * bitmap.height * 4)
-    bitmap.copyPixelsToBuffer(b)
-    b.position(0)
-#endif
+    imageTexture = LoadTexture(esContext->platformData, "lighting/brick.png");
+
+    glUniform1i(LOCATION_UNIFORM_TEXTURE, 0);
+    glEnable(GL_DEPTH_TEST);
 }
 
-void getIdentity(ESMatrix *matrix) {
-    esMatrixLoadIdentity(matrix);
-}
+int defaultFramebuffer;
 
 void offscreenRender(ESContext *esContext) {
-    onSurfaceCreated(esContext, NULL);
+    GLfloat *positions;
+    GLuint *indices;
+
 }

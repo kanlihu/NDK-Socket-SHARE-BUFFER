@@ -169,7 +169,7 @@ int Init(ESContext *esContext) {
         genOutTexture02(esContext, i);
         setupAHardwareBuffer02(esContext, i);
     }
-    offscreenRender(esContext);
+    onSurfaceCreated(esContext, NULL);
     if (userData->baseMapTexId == 0) {
         return FALSE;
     } else {

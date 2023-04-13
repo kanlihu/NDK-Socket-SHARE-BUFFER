@@ -5,11 +5,11 @@
 #ifndef AHARDWAREBUFFER_IPC_CLIENT_ANDROID_UTIL_H
 #define AHARDWAREBUFFER_IPC_CLIENT_ANDROID_UTIL_H
 
-#include <GLES3/gl3.h>
-#include <EGL/egl.h>
-#include <EGL/eglext.h>
-#include <stdint.h>
-#include <array>
+#include "../../../../../../../../Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/GLES3/gl3.h"
+#include "../../../../../../../../Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/EGL/egl.h"
+#include "../../../../../../../../Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/EGL/eglext.h"
+#include "../../../../../../../../Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/stdint.h"
+#include "../../../../../../../../Android/Sdk/ndk/21.4.7075529/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/c++/v1/array"
 
 
 // Taken from cutils/native_handle.h:

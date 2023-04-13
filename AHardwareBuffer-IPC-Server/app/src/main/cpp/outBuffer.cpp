@@ -13,9 +13,10 @@
 
 #include <android/hardware_buffer.h>
 #include "esUtil.h"
-#include "android_util.h"
+#include "test_utils/android_util.h"
 #include "socket.h"
 #include "android_log.h"
+#include "test_utils/gl_raii.h"
 
 // Can be anything if using abstract namespace
 #define SOCKET_NAME "sharedServerSocket"
